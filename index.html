@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bartox AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .prose pre { background: #1e293b; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
+    .prose p { margin-bottom: 0.75rem; }
+    .prose ul, .prose ol { margin-left: 1.5rem; margin-bottom: 0.75rem; }
+    .prose ul { list-style-type: disc; }
+    .prose ol { list-style-type: decimal; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex overflow-hidden font-sans">
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-all duration-300 hidden md:flex">
+    <div class="p-4 border-b border-slate-800 flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-500/20">
+        B
+      </div>
+      <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+        Bartox AI
+      </span>
+    </div>
+
+    <div class="p-3">
+      <button onclick="newChat()" class="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition border border-slate-700">
+        <span>+</span> Obrolan Baru
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-3 space-y-1" id="history-list"></div>
+  </aside>
+
+  <!-- Main Chat -->
+  <main class="flex-1 flex flex-col h-full relative">
+    <header class="h-14 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex items-center justify-between px-4">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSidebar()" class="md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400">☰</button>
+        <span class="font-semibold text-slate-200">Bartox AI</span>
+        <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          Online
+        </span>
+      </div>
+    </header>
+
+    <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+      <div id="welcome-screen" class="h-full flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-4">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center text-3xl font-bold text-white shadow-xl shadow-emerald-500/20">
+          B
+        </div>
+        <h1 class="text-2xl md:text-3xl font-bold text-white">Halo! Saya Bartox AI</h1>
+        <p class="text-slate-400 text-sm md:text-base">
+          Tanyakan apa saja—mulai dari coding, tugas kuliah, ide bisnis, hingga terjemahan.
+        </p>
+      </div>
+    </div>
+
+    <div class="p-4 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent">
+      <div class="max-w-3xl mx-auto">
+        <form onsubmit="handleSend(event)" class="flex items-end gap-2 bg-slate-900 border border-slate-700 focus-within:border-emerald-500 rounded-2xl p-2 shadow-lg">
+          <textarea
+            id="user-input"
+            rows="1"
+            placeholder="Kirim pesan ke Bartox AI..."
+            class="w-full bg-transparent text-slate-100 placeholder-slate-500 text-sm px-3 py-2 focus:outline-none resize-none max-h-40"
+            onkeydown="handleKeyDown(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+          <button type="submit" id="send-btn" class="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium transition shrink-0">
+            ➤
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let chats = JSON.parse(localStorage.getItem('bartox_chats') || '[]');
+    let currentChatId = null;
+    renderHistory();
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend(e);
+      }
+    }
+
+    function toggleSidebar() {
+      const sb = document.getElementById('sidebar');
+      sb.classList.toggle('hidden');
+      sb.classList.toggle('fixed');
+      sb.classList.toggle('z-40');
+      sb.classList.toggle('h-full');
+    }
+
+    function newChat() {
+      currentChatId = null;
+      document.getElementById('chat-container').innerHTML = `
+        <div id="welcome-screen" class="h-full flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-4">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center text-3xl font-bold text-white shadow-xl shadow-emerald-500/20">B</div>
+          <h1 class="text-2xl md:text-3xl font-bold text-white">Halo! Saya Bartox AI</h1>
+          <p class="text-slate-400 text-sm md:text-base">Apa yang bisa Bartox AI bantu hari ini?</p>
+        </div>`;
+    }
+
+    async function handleSend(e) {
+      e.preventDefault();
+      const input = document.getElementById('user-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('welcome-screen')?.remove();
+
+      if (!currentChatId) {
+        currentChatId = Date.now().toString();
+        chats.unshift({ id: currentChatId, title: text.slice(0, 35), messages: [] });
+      }
+
+      const chat = chats.find(c => c.id === currentChatId);
+      chat.messages.push({ role: 'user', content: text });
+      appendMessage('user', text);
+      saveChats();
+      renderHistory();
+
+      const loadingId = 'loading-' + Date.now();
+      appendMessage('assistant', '<span class="animate-pulse">Bartox AI sedang mengetik...</span>', loadingId);
+
+      try {
+        // Mengirim permintaan ke backend server.py
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: chat.messages })
+        });
+        const data = await res.json();
+        document.getElementById(loadingId)?.remove();
+
+        if (!res.ok) throw new Error(data.detail || 'Gagal memproses permintaan');
+
+        chat.messages.push({ role: 'assistant', content: data.reply });
+        appendMessage('assistant', data.reply);
+        saveChats();
+      } catch (err) {
+        document.getElementById(loadingId)?.remove();
+        appendMessage('assistant', `⚠️ **Error:** ${err.message}`);
+      }
+    }
+
+    function appendMessage(role, content, id = '') {
+      const container = document.getElementById('chat-container');
+      const wrapper = document.createElement('div');
+      if (id) wrapper.id = id;
+      wrapper.className = `max-w-3xl mx-auto flex gap-4 ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+      if (role === 'user') {
+        wrapper.innerHTML = `<div class="bg-emerald-600 text-white px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm whitespace-pre-wrap shadow">${escapeHtml(content)}</div>`;
+      } else {
+        const parsed = id ? content : marked.parse(content);
+        wrapper.innerHTML = `
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center font-bold text-xs text-white shrink-0 mt-1">B</div>
+          <div class="prose prose-invert max-w-[85%] text-sm text-slate-200 leading-relaxed bg-slate-900/60 border border-slate-800/80 px-4 py-3 rounded-2xl rounded-tl-sm">${parsed}</div>`;
+      }
+
+      container.appendChild(wrapper);
+      wrapper.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function saveChats() { localStorage.setItem('bartox_chats', JSON.stringify(chats)); }
+    function renderHistory() {
+      document.getElementById('history-list').innerHTML = chats.map(c => `
+        <button onclick="loadChat('${c.id}')" class="w-full text-left px-3 py-2 rounded-lg text-xs truncate transition ${c.id === currentChatId ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:bg-slate-800/50'}">
+          💬 ${escapeHtml(c.title)}
+        </button>`).join('');
+    }
+    function loadChat(id) {
+      currentChatId = id;
+      const chat = chats.find(c => c.id === id);
+      if (!chat) return;
+      document.getElementById('chat-container').innerHTML = '';
+      chat.messages.forEach(m => appendMessage(m.role, m.content));
+      renderHistory();
+    }
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+  </script>
+</body>
+</html>
